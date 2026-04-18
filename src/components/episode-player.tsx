@@ -35,11 +35,13 @@ function toCloudinaryEmbedUrl(input: string): string | null {
   const publicId = toCloudinaryPublicId(input);
   if (!publicId) return null;
   return `https://player.cloudinary.com/embed/?cloud_name=${encodeURIComponent(
-    CLOUDINARY_CLOUD_NAME
+    CLOUDINARY_CLOUD_NAME,
   )}&public_id=${encodeURIComponent(publicId)}`;
 }
 
-function toCloudinarySource(input: string): { publicId?: string; sourceUrl?: string } | null {
+function toCloudinarySource(
+  input: string,
+): { publicId?: string; sourceUrl?: string } | null {
   const publicId = toCloudinaryPublicId(input);
   if (publicId) return { publicId };
   try {
@@ -57,7 +59,8 @@ function ensureCloudinaryPlayerStyles() {
   if (document.querySelector('link[data-cloudinary-player="true"]')) return;
   const link = document.createElement("link");
   link.rel = "stylesheet";
-  link.href = "https://unpkg.com/cloudinary-video-player/dist/cld-video-player.min.css";
+  link.href =
+    "https://unpkg.com/cloudinary-video-player/dist/cld-video-player.min.css";
   link.setAttribute("data-cloudinary-player", "true");
   document.head.appendChild(link);
 }
@@ -68,17 +71,18 @@ export function EpisodePlayer({ url, title }: { url: string; title: string }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const cloudinarySource = useMemo(
     () => (parsed ? toCloudinarySource(parsed.src) : null),
-    [parsed]
+    [parsed],
   );
   const cloudinaryEmbedUrl = useMemo(
     () => (parsed ? toCloudinaryEmbedUrl(parsed.src) : null),
-    [parsed]
+    [parsed],
   );
 
   useEffect(() => {
     if (!cloudinarySource || !videoRef.current) return;
 
-    let activePlayer: import("cloudinary-video-player").VideoPlayer | null = null;
+    let activePlayer: import("cloudinary-video-player").VideoPlayer | null =
+      null;
     let cancelled = false;
 
     ensureCloudinaryPlayerStyles();
@@ -88,10 +92,9 @@ export function EpisodePlayer({ url, title }: { url: string; title: string }) {
       const player = videoPlayer(playerId, {
         cloudName: CLOUDINARY_CLOUD_NAME,
         secure: true,
-        autoplayMode: "on-scroll",
         showJumpControls: true,
         fluid: true,
-        autoplay: true,
+        autoplay: false,
         controls: true,
       });
       activePlayer = player;
