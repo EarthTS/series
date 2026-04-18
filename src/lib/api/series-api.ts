@@ -100,7 +100,8 @@ export async function createSeries(payload: {
   description: string;
   coverUrl: string;
   tags: string[];
-  uploadBy: string;
+  /** Must be a valid Mongo ObjectID hex of an existing user, or omit / leave empty. */
+  uploadBy?: string;
   episodes: Array<{ title: string; url: string }>;
 }): Promise<boolean> {
   const movieInput: GithubComYourUsernameBackendProjectInternalServiceCreateMovieInput = {
@@ -108,7 +109,7 @@ export async function createSeries(payload: {
     description: payload.description,
     image: payload.coverUrl,
     type: payload.tags,
-    uploadBy: payload.uploadBy,
+    ...(payload.uploadBy?.trim() ? { uploadBy: payload.uploadBy.trim() } : {}),
     media: payload.episodes.map((ep) => ({ title: ep.title, src: ep.url })),
   };
   const res = await postApiV1Movies(movieInput);
@@ -120,21 +121,28 @@ export async function createSeriesAndGetId(payload: {
   description: string;
   coverUrl: string;
   tags: string[];
-  uploadBy: string;
+  uploadBy?: string;
   episodes: Array<{ title: string; url: string }>;
-}): Promise<{ ok: boolean; id: string }> {
+}): Promise<{ ok: boolean; id: string; errorMessage?: string }> {
   const movieInput: GithubComYourUsernameBackendProjectInternalServiceCreateMovieInput = {
     title: payload.title,
     description: payload.description,
     image: payload.coverUrl,
     type: payload.tags,
-    uploadBy: payload.uploadBy,
+    ...(payload.uploadBy?.trim() ? { uploadBy: payload.uploadBy.trim() } : {}),
     media: payload.episodes.map((ep) => ({ title: ep.title, src: ep.url })),
   };
   const res = await postApiV1Movies(movieInput);
   const data = asRecord(res.data);
+  if (res.status !== 201) {
+    const errMsg = asString(data.message, `สร้างไม่สำเร็จ (HTTP ${res.status})`);
+    return { ok: false, id: "", errorMessage: errMsg };
+  }
   const id = asString(data.movieId || data.movie_id || data.id || data._id);
-  return { ok: res.status === 201 && Boolean(id), id };
+  if (!id) {
+    return { ok: false, id: "", errorMessage: "API ตอบ 201 แต่ไม่พบ movieId ใน response" };
+  }
+  return { ok: true, id };
 }
 
 export async function updateSeries(

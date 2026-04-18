@@ -1,26 +1,26 @@
 "use client";
 
 import { Button, Input, Label } from "@/components/ui";
-import { createSeries } from "@/lib/api/series-api";
+import { createSeries, createSeriesAndGetId } from "@/lib/api/series-api";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-type UploadMode = "manual" | "bilibili";
+type UploadMode = "manual" | "auto";
 type EpRow = {
-  title: string;
   url: string;
   sourceUrl: string;
-  status: "idle" | "processing" | "done" | "error";
+  status: "idle" | "queued" | "processing" | "done" | "error";
   message?: string;
+  jobId?: string;
 };
-type UploadStreamResult = {
-  items?: Array<{
-    cloudinaryUrl: string;
-    downloadedFile: string;
-    publicId: string;
-  }>;
-  message?: string;
-};
+
+const DEFAULT_REFERER = "https://www.bilibili.tv/";
+const DEFAULT_USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
+function toEpisodeTitle(index: number): string {
+  return `ep. ${index + 1}`;
+}
 
 export default function AdminUploadPage() {
   const router = useRouter();
@@ -29,20 +29,11 @@ export default function AdminUploadPage() {
   const [description, setDescription] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
   const [tags, setTags] = useState("");
-  const [referer, setReferer] = useState("https://www.bilibili.tv/");
-  const [userAgent, setUserAgent] = useState(
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-  );
-  const [cookie, setCookie] = useState("");
-  const [cookiesFromBrowser, setCookiesFromBrowser] = useState("");
-  const [eps, setEps] = useState<EpRow[]>([
-    { title: "", url: "", sourceUrl: "", status: "idle" },
-  ]);
-  const [processingAll, setProcessingAll] = useState(false);
+  const [eps, setEps] = useState<EpRow[]>([{ url: "", sourceUrl: "", status: "idle" }]);
   const [submitting, setSubmitting] = useState(false);
 
   function addRow() {
-    setEps((e) => [...e, { title: "", url: "", sourceUrl: "", status: "idle" }]);
+    setEps((e) => [...e, { url: "", sourceUrl: "", status: "idle" }]);
   }
 
   function updateRow(i: number, patch: Partial<EpRow>) {
@@ -53,125 +44,75 @@ export default function AdminUploadPage() {
     setEps((rows) => rows.filter((_, j) => j !== i));
   }
 
-  async function downloadAndUploadToCloudinary(sourceUrl: string): Promise<string> {
-    const res = await fetch("/api/v1/tools/bilibili/upload-stream", {
+  async function queueBilibiliJob(sourceUrl: string, movieId: string): Promise<string | null> {
+    const res = await fetch("/api/v1/tools/bilibili/upload", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         url: sourceUrl.trim(),
-        referer: referer.trim(),
-        userAgent: userAgent.trim(),
-        cookie: cookie.trim(),
-        cookiesFromBrowser: cookiesFromBrowser.trim(),
+        referer: DEFAULT_REFERER,
+        userAgent: DEFAULT_USER_AGENT,
         playlist: false,
         maxItems: 1,
+        movieId,
       }),
     });
-    if (!res.ok || !res.body) {
-      throw new Error("ไม่สามารถเริ่ม Bilibili downloader ได้");
-    }
 
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    let finalPayload: UploadStreamResult | null = null;
-    let streamError = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const events = buffer.split("\n\n");
-      buffer = events.pop() || "";
-
-      for (const rawEvent of events) {
-        const lines = rawEvent.split("\n");
-        const eventLine = lines.find((line) => line.startsWith("event: "));
-        const dataLine = lines.find((line) => line.startsWith("data: "));
-        if (!eventLine || !dataLine) continue;
-        const eventType = eventLine.replace("event: ", "").trim();
-        const payload = JSON.parse(dataLine.replace("data: ", "").trim()) as UploadStreamResult;
-        if (eventType === "error") {
-          streamError = payload.message || "ดาวน์โหลดหรืออัปโหลดไม่สำเร็จ";
-        }
-        if (eventType === "complete") {
-          finalPayload = payload;
-        }
-      }
-    }
-
-    if (streamError) {
-      throw new Error(streamError);
-    }
-    const cloudinaryUrl = finalPayload?.items?.[0]?.cloudinaryUrl;
-    if (!cloudinaryUrl) {
-      throw new Error("ไม่พบ Cloudinary URL จากผลลัพธ์");
-    }
-    return cloudinaryUrl;
-  }
-
-  async function processEpisodeByIndex(index: number) {
-    const sourceUrl = eps[index]?.sourceUrl?.trim();
-    if (!sourceUrl) {
-      setEps((rows) =>
-        rows.map((row, i) =>
-          i === index ? { ...row, status: "error", message: "กรุณาใส่ลิงก์ต้นทางก่อน" } : row
-        )
-      );
-      return;
-    }
-
-    setEps((rows) =>
-      rows.map((row, i) =>
-        i === index ? { ...row, status: "processing", message: "กำลังดาวน์โหลดและอัปโหลด..." } : row
-      )
-    );
-
+    const raw = await res.text();
+    let payload: { message?: string } | null = null;
     try {
-      const cloudinaryUrl = await downloadAndUploadToCloudinary(sourceUrl);
-      setEps((rows) =>
-        rows.map((row, i) =>
-          i === index
-            ? { ...row, url: cloudinaryUrl, status: "done", message: "พร้อมบันทึกแล้ว" }
-            : row
-        )
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "เกิดข้อผิดพลาดไม่ทราบสาเหตุ";
-      setEps((rows) =>
-        rows.map((row, i) => (i === index ? { ...row, status: "error", message } : row))
-      );
+      payload = raw ? (JSON.parse(raw) as { message?: string }) : null;
+    } catch {
+      payload = null;
     }
-  }
-
-  async function processAllEpisodes() {
-    const indexes = eps
-      .map((row, index) => ({ row, index }))
-      .filter(({ row }) => row.sourceUrl.trim() && !row.url.trim())
-      .map(({ index }) => index);
-    if (indexes.length === 0) {
-      alert("ยังไม่มีลิงก์ที่ต้องแปลง หรือแปลงครบแล้ว");
-      return;
-    }
-    setProcessingAll(true);
-    for (const index of indexes) {
-      await processEpisodeByIndex(index);
-    }
-    setProcessingAll(false);
+    if (res.status === 202) return null;
+    return payload?.message || `HTTP ${res.status}`;
   }
 
   async function submit() {
-    const filtered = eps.filter((e) => e.url.trim());
-    const episodes = filtered.map((e, idx) => ({
-      title: e.title.trim() || `ตอนที่ ${idx + 1}`,
-      url: e.url.trim(),
-    }));
-    if (!title.trim() || !coverUrl.trim() || episodes.length === 0 || episodes.length !== eps.length) {
-      alert("กรุณากรอกข้อมูลให้ครบ และให้ทุกตอนมี URL วิดีโอปลายทางก่อนบันทึก");
+    if (!title.trim() || !coverUrl.trim()) {
+      alert("กรุณากรอกข้อมูลพื้นฐานให้ครบ");
       return;
     }
+
+    if (mode === "manual") {
+      const filtered = eps.filter((e) => e.url.trim());
+      const episodes = filtered.map((e, idx) => ({
+        title: toEpisodeTitle(idx),
+        url: e.url.trim(),
+      }));
+      if (episodes.length === 0 || episodes.length !== eps.length) {
+        alert("กรุณาใส่ URL ปลายทางให้ครบทุกตอน");
+        return;
+      }
+      setSubmitting(true);
+      const ok = await createSeries({
+        title: title.trim(),
+        description: description.trim(),
+        coverUrl: coverUrl.trim(),
+        tags: tags
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+        episodes,
+      }).catch(() => false);
+      setSubmitting(false);
+      if (!ok) {
+        alert("บันทึกไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ API");
+        return;
+      }
+      router.push("/admin/series");
+      return;
+    }
+
+    const sources = eps.map((e) => e.sourceUrl.trim()).filter(Boolean);
+    if (sources.length === 0 || sources.length !== eps.length) {
+      alert("กรุณาใส่ download url ให้ครบทุกบรรทัด");
+      return;
+    }
+
     setSubmitting(true);
-    const ok = await createSeries({
+    const draft = {
       title: title.trim(),
       description: description.trim(),
       coverUrl: coverUrl.trim(),
@@ -179,14 +120,36 @@ export default function AdminUploadPage() {
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean),
-      uploadBy: "admin-web",
-      episodes,
-    }).catch(() => false);
+    };
+    const queuedRows: EpRow[] = sources.map((sourceUrl) => ({
+      sourceUrl,
+      url: sourceUrl,
+      status: "queued",
+      message: "queued",
+    }));
+    const created = await createSeriesAndGetId({
+      ...draft,
+      episodes: queuedRows.map((row, idx) => ({
+        title: toEpisodeTitle(idx),
+        url: row.url,
+      })),
+    }).catch(() => ({ ok: false, id: "", errorMessage: "เชื่อมต่อ API ไม่สำเร็จ" }));
     setSubmitting(false);
-    if (!ok) {
-      alert("บันทึกไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ API");
+    if (!created.ok || !created.id) {
+      alert(created.errorMessage || "สร้างซีรี่ไม่สำเร็จ");
       return;
     }
+
+    for (const sourceUrl of sources) {
+      const queueError = await queueBilibiliJob(sourceUrl, created.id);
+      if (queueError) {
+        alert(`คิวงานดาวน์โหลดไม่สำเร็จ: ${queueError}`);
+        router.push("/admin/series");
+        return;
+      }
+    }
+
+    alert("สร้างซีรี่แล้ว แบ็กเอนด์จะอัปเดต URL จาก Cloudinary ให้เมื่อแต่ละ job เสร็จ");
     router.push("/admin/series");
   }
 
@@ -213,14 +176,14 @@ export default function AdminUploadPage() {
         </button>
         <button
           type="button"
-          onClick={() => setMode("bilibili")}
+          onClick={() => setMode("auto")}
           className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-            mode === "bilibili"
+            mode === "auto"
               ? "bg-gradient-to-r from-[#5a9fe8] to-[#6eb5ff] text-[#061018]"
               : "text-[var(--foreground-muted)]"
           }`}
         >
-          Bilibili Downloader
+          Auto Upload (Bilibili)
         </button>
       </div>
 
@@ -256,55 +219,19 @@ export default function AdminUploadPage() {
 
       <div className="space-y-3 rounded-2xl border border-[var(--border-strong)] bg-[var(--card-solid)] p-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-[var(--foreground)]">ตอน (Video URL ปลายทาง)</h2>
+          <h2 className="text-sm font-bold text-[var(--foreground)]">
+            {mode === "manual" ? "ตอน (Video URL ปลายทาง)" : "download url (รายการต้นทาง)"}
+          </h2>
           <Button type="button" variant="secondary" className="min-h-9 text-xs" onClick={addRow}>
-            + เพิ่มตอน
+            + เพิ่มรายการ
           </Button>
         </div>
-        {mode === "bilibili" && (
+        {mode === "auto" && (
           <div className="space-y-3 rounded-xl border border-[var(--border)] bg-[var(--muted)] p-3">
             <p className="text-xs text-[var(--foreground-muted)]">
-              โหมดนี้จะดาวน์โหลดจากลิงก์ต้นทาง แล้วอัปโหลดไป Cloudinary ก่อนนำ URL ปลายทางมาใส่ในแต่ละตอน
+              ระบบจะใช้ Referer และ User-Agent มาตรฐานของ Bilibili ให้อัตโนมัติ สร้างซีรี่ก่อนทันที
+              แล้วแบ็กเอนด์จะแทนที่แต่ละ download url ในรายการตอนด้วย URL จาก Cloudinary เมื่อ job นั้นอัปโหลดครบ
             </p>
-            <div>
-              <Label htmlFor="bili-referer">Referer</Label>
-              <Input
-                id="bili-referer"
-                value={referer}
-                onChange={(e) => setReferer(e.target.value)}
-                placeholder="https://www.bilibili.tv/"
-              />
-            </div>
-            <div>
-              <Label htmlFor="bili-ua">User-Agent</Label>
-              <Input
-                id="bili-ua"
-                value={userAgent}
-                onChange={(e) => setUserAgent(e.target.value)}
-                placeholder="Mozilla/5.0 ..."
-              />
-            </div>
-            <div>
-              <Label htmlFor="bili-cookie">Cookie (optional)</Label>
-              <Input
-                id="bili-cookie"
-                value={cookie}
-                onChange={(e) => setCookie(e.target.value)}
-                placeholder="SESSDATA=...; bili_jct=..."
-              />
-            </div>
-            <div>
-              <Label htmlFor="bili-browser-cookie">Cookies from browser (optional)</Label>
-              <Input
-                id="bili-browser-cookie"
-                value={cookiesFromBrowser}
-                onChange={(e) => setCookiesFromBrowser(e.target.value)}
-                placeholder="chrome / firefox / safari"
-              />
-            </div>
-            <Button type="button" onClick={processAllEpisodes} disabled={processingAll || submitting}>
-              {processingAll ? "กำลังแปลงลิงก์ทั้งหมด..." : "แปลงลิงก์ทุกตอนที่ยังไม่พร้อม"}
-            </Button>
           </div>
         )}
         <ul className="space-y-3">
@@ -314,17 +241,8 @@ export default function AdminUploadPage() {
               className="rounded-xl border border-[var(--border)] bg-[var(--muted)] p-3"
             >
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                <div className="min-w-0 flex-1">
-                  <Label htmlFor={`et-${i}`}>ชื่อตอน</Label>
-                  <Input
-                    id={`et-${i}`}
-                    value={row.title}
-                    onChange={(e) => updateRow(i, { title: e.target.value })}
-                    placeholder={`ตอนที่ ${i + 1}`}
-                  />
-                </div>
                 {mode === "manual" ? (
-                  <div className="min-w-0 flex-[2]">
+                  <div className="min-w-0 flex-1">
                     <Label htmlFor={`eu-${i}`}>ลิงก์วิดีโอ</Label>
                     <Input
                       id={`eu-${i}`}
@@ -341,8 +259,8 @@ export default function AdminUploadPage() {
                     />
                   </div>
                 ) : (
-                  <div className="min-w-0 flex-[2]">
-                    <Label htmlFor={`src-${i}`}>ลิงก์ต้นทาง Bilibili / direct</Label>
+                  <div className="min-w-0 flex-1">
+                    <Label htmlFor={`src-${i}`}>download url</Label>
                     <Input
                       id={`src-${i}`}
                       type="url"
@@ -369,28 +287,7 @@ export default function AdminUploadPage() {
                   </Button>
                 )}
               </div>
-              {mode === "bilibili" && (
-                <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto] sm:items-end">
-                  <div className="min-w-0">
-                    <Label htmlFor={`eu-${i}`}>Cloudinary URL (ปลายทาง)</Label>
-                    <Input
-                      id={`eu-${i}`}
-                      type="url"
-                      value={row.url}
-                      onChange={(e) => updateRow(i, { url: e.target.value })}
-                      placeholder="ระบบจะเติมให้อัตโนมัติหลังแปลงสำเร็จ"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={() => processEpisodeByIndex(i)}
-                    disabled={row.status === "processing" || submitting || processingAll}
-                  >
-                    {row.status === "processing" ? "กำลังแปลง..." : "แปลงตอนนี้"}
-                  </Button>
-                </div>
-              )}
-              {mode === "bilibili" && row.message && (
+              {mode === "auto" && row.message && (
                 <p
                   className={`mt-2 text-xs ${
                     row.status === "error"
