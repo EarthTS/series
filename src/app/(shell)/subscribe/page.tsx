@@ -49,10 +49,12 @@ export default function SubscribePage() {
         </ul>
 
         <Link
-          href="/pay"
+          href="https://line.me/R/ti/p/@oxn2895n"
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex min-h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-br from-[#5a9fe8] via-[#6eb5ff] to-[#8ecfff] px-4 text-sm font-bold text-[#061018] shadow-[0_10px_32px_var(--accent-glow)] transition-[filter] hover:brightness-[1.06]"
         >
-          ไปชำระเงินด้วย Thai QR
+          ติดต่อผ่าน LINE
         </Link>
 
         <p className="text-center text-xs leading-relaxed text-[var(--foreground-muted)]">
