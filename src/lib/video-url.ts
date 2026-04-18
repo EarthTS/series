@@ -12,7 +12,7 @@ export function toDropboxDirectUrl(input: string): string {
   }
 }
 
-export type PlayerKind = "bilibili" | "cloudinary-player" | "direct";
+export type PlayerKind = "bilibili" | "direct";
 
 export function classifyVideoUrl(input: string): { kind: PlayerKind; src: string } | null {
   const trimmed = input.trim();
@@ -22,9 +22,6 @@ export function classifyVideoUrl(input: string): { kind: PlayerKind; src: string
     const host = u.hostname.toLowerCase();
     if (host === "www.bilibili.tv" || host === "bilibili.tv") {
       return { kind: "bilibili", src: u.toString() };
-    }
-    if (host === "player.cloudinary.com" && u.pathname.startsWith("/embed/")) {
-      return { kind: "cloudinary-player", src: u.toString() };
     }
     if (host.endsWith("dropbox.com") || host.endsWith("dropboxusercontent.com")) {
       return { kind: "direct", src: toDropboxDirectUrl(trimmed) };
