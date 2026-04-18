@@ -13,7 +13,7 @@ export function EpisodePlayer({ url, title }: { url: string; title: string }) {
     );
   }
 
-  if (parsed.kind === "bilibili") {
+  if (parsed.kind === "bilibili" || parsed.kind === "cloudinary-player") {
     return (
       <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-black shadow-[0_16px_48px_rgba(0,0,0,0.55)] ring-1 ring-white/10">
         <iframe
