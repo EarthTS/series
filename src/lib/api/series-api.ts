@@ -115,6 +115,28 @@ export async function createSeries(payload: {
   return res.status === 201;
 }
 
+export async function createSeriesAndGetId(payload: {
+  title: string;
+  description: string;
+  coverUrl: string;
+  tags: string[];
+  uploadBy: string;
+  episodes: Array<{ title: string; url: string }>;
+}): Promise<{ ok: boolean; id: string }> {
+  const movieInput: GithubComYourUsernameBackendProjectInternalServiceCreateMovieInput = {
+    title: payload.title,
+    description: payload.description,
+    image: payload.coverUrl,
+    type: payload.tags,
+    uploadBy: payload.uploadBy,
+    media: payload.episodes.map((ep) => ({ title: ep.title, src: ep.url })),
+  };
+  const res = await postApiV1Movies(movieInput);
+  const data = asRecord(res.data);
+  const id = asString(data.movieId || data.movie_id || data.id || data._id);
+  return { ok: res.status === 201 && Boolean(id), id };
+}
+
 export async function updateSeries(
   id: string,
   payload: {

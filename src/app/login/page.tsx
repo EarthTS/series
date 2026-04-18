@@ -70,6 +70,7 @@ export default function LoginPage() {
                   name: "",
                   email: email.trim(),
                   isAdmin: false,
+                  expiredDate: null,
                   token: null,
                   message: "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้",
                 };

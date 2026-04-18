@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/admin/users", label: "ผู้ใช้" },
   { href: "/admin/series", label: "ซีรี่ทั้งหมด" },
   { href: "/admin/upload", label: "อัปโหลด" },
+  { href: "/admin/jobs", label: "Jobs" },
   { href: "/admin/settings", label: "ตั้งค่าระบบ" },
 ] as const;
 

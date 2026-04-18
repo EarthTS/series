@@ -19,11 +19,17 @@ export default function AdminSettingsPage() {
   );
   const [cookie, setCookie] = useState("");
   const [cookiesFromBrowser, setCookiesFromBrowser] = useState("");
+  const [playlist, setPlaylist] = useState(false);
+  const [maxItems, setMaxItems] = useState(10);
   const [downloading, setDownloading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [statusText, setStatusText] = useState("พร้อมใช้งาน");
   const [result, setResult] = useState<{
-    cloudinaryUrl: string;
-    downloadedFile: string;
-    publicId: string;
+    items: Array<{
+      cloudinaryUrl: string;
+      downloadedFile: string;
+      publicId: string;
+    }>;
   } | null>(null);
   const [error, setError] = useState("");
 
@@ -35,7 +41,10 @@ export default function AdminSettingsPage() {
     setDownloading(true);
     setError("");
     setResult(null);
-    const res = await fetch("/api/v1/tools/bilibili/upload", {
+    setProgress(1);
+    setStatusText("เริ่มต้นการประมวลผล...");
+
+    const res = await fetch("/api/v1/tools/bilibili/upload-stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -44,25 +53,65 @@ export default function AdminSettingsPage() {
         userAgent: userAgent.trim(),
         cookie: cookie.trim(),
         cookiesFromBrowser: cookiesFromBrowser.trim(),
+        playlist,
+        maxItems,
       }),
     });
-    const data = (await res.json().catch(() => ({}))) as {
-      ok?: boolean;
-      message?: string;
-      cloudinaryUrl?: string;
-      downloadedFile?: string;
-      publicId?: string;
-    };
-    setDownloading(false);
-    if (!res.ok || !data.ok || !data.cloudinaryUrl) {
-      setError(data.message || "ไม่สามารถดาวน์โหลด/อัปโหลดได้");
+    if (!res.ok || !res.body) {
+      setDownloading(false);
+      setError("ไม่สามารถเริ่ม stream progress ได้");
       return;
     }
-    setResult({
-      cloudinaryUrl: data.cloudinaryUrl,
-      downloadedFile: data.downloadedFile || "",
-      publicId: data.publicId || "",
-    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let completed = false;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split("\n\n");
+      buffer = events.pop() || "";
+      for (const rawEvent of events) {
+        const lines = rawEvent.split("\n");
+        const eventLine = lines.find((line) => line.startsWith("event: "));
+        const dataLine = lines.find((line) => line.startsWith("data: "));
+        if (!eventLine || !dataLine) continue;
+        const eventType = eventLine.replace("event: ", "").trim();
+        const payload = JSON.parse(dataLine.replace("data: ", "").trim()) as {
+          progress?: number;
+          message?: string;
+          items?: Array<{
+            cloudinaryUrl: string;
+            downloadedFile: string;
+            publicId: string;
+          }>;
+        };
+
+        if (eventType === "progress") {
+          setProgress(payload.progress ?? 0);
+          setStatusText(payload.message || "กำลังประมวลผล...");
+        } else if (eventType === "error") {
+          setError(payload.message || "เกิดข้อผิดพลาด");
+          setStatusText("เกิดข้อผิดพลาด");
+          setDownloading(false);
+          return;
+        } else if (eventType === "complete") {
+          setProgress(100);
+          setStatusText("เสร็จสิ้น");
+          setResult({ items: payload.items || [] });
+          completed = true;
+        }
+      }
+    }
+
+    setDownloading(false);
+    if (!completed) {
+      setError("การประมวลผลไม่สมบูรณ์");
+      setStatusText("ไม่สำเร็จ");
+    }
   }
 
   return (
@@ -141,18 +190,56 @@ export default function AdminSettingsPage() {
               onChange={(e) => setCookiesFromBrowser(e.target.value)}
             />
           </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="bili-playlist"
+              type="checkbox"
+              checked={playlist}
+              onChange={(e) => setPlaylist(e.target.checked)}
+            />
+            <Label htmlFor="bili-playlist" className="mb-0">
+              ดาวน์โหลดแบบ playlist
+            </Label>
+          </div>
+          {playlist && (
+            <div>
+              <Label htmlFor="bili-max-items">จำนวนตอนสูงสุด</Label>
+              <Input
+                id="bili-max-items"
+                type="number"
+                min={1}
+                max={200}
+                value={String(maxItems)}
+                onChange={(e) => setMaxItems(Math.max(1, Number(e.target.value || "1")))}
+              />
+            </div>
+          )}
           <Button type="button" onClick={handleBilibiliDownload} disabled={downloading}>
             {downloading ? "กำลังประมวลผล..." : "ดาวน์โหลดและอัปโหลดไป Cloudinary"}
           </Button>
+          <div className="space-y-1">
+            <div className="h-2 overflow-hidden rounded-full bg-[var(--muted)]">
+              <div
+                className="h-full bg-gradient-to-r from-[#5a9fe8] to-[#8ecfff] transition-all"
+                style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
+              />
+            </div>
+            <p className="text-xs text-[var(--foreground-muted)]">
+              {statusText} ({Math.round(progress)}%)
+            </p>
+          </div>
           {error && <p className="text-sm text-red-300">{error}</p>}
-          {result && (
+          {result && result.items.length > 0 && (
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm">
               <p className="font-semibold text-emerald-200">สำเร็จ</p>
-              <p className="mt-1 text-emerald-100 break-all">
-                Cloudinary URL: {result.cloudinaryUrl}
-              </p>
-              <p className="mt-1 text-emerald-100 break-all">Public ID: {result.publicId}</p>
-              <p className="mt-1 text-emerald-100 break-all">Downloaded file: {result.downloadedFile}</p>
+              <p className="mt-1 text-emerald-100 break-all">จำนวนไฟล์: {result.items.length}</p>
+              {result.items.slice(0, 5).map((item, idx) => (
+                <div key={`${item.publicId}-${idx}`} className="mt-2 rounded-lg border border-emerald-300/20 p-2">
+                  <p className="text-emerald-100 break-all">Downloaded: {item.downloadedFile}</p>
+                  <p className="text-emerald-100 break-all">Cloudinary URL: {item.cloudinaryUrl}</p>
+                  <p className="text-emerald-100 break-all">Public ID: {item.publicId}</p>
+                </div>
+              ))}
             </div>
           )}
         </div>

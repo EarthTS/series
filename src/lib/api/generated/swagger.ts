@@ -9,6 +9,7 @@ import type {
   GetApiV1Movies200Item,
   GetApiV1MoviesId200,
   GetApiV1MoviesParams,
+  GetApiV1ToolsBilibiliJobs200,
   GetApiV1Users200Item,
   GetApiV1UsersId200,
   GetApiV1UsersParams,
@@ -20,7 +21,11 @@ import type {
   GithubComYourUsernameBackendProjectInternalServiceUpdateMovieInput,
   GithubComYourUsernameBackendProjectInternalServiceUpdateUserInput,
   GithubComYourUsernameBackendProjectPkgResponseErrorBody,
+  InternalHandlerBilibiliJob,
+  InternalHandlerBilibiliJobResponse,
   PostApiV1Movies201,
+  PostApiV1ToolsBilibiliUploadBody,
+  PostApiV1ToolsBilibiliUploadStreamBody,
   PostApiV1Users201,
   PutApiV1MoviesId200,
   PutApiV1UsersId200
@@ -283,6 +288,211 @@ export const putApiV1MoviesId = async (id: string,
 
   const data: putApiV1MoviesIdResponse['data'] = body ? JSON.parse(body) : {}
   return { data, status: res.status, headers: res.headers } as putApiV1MoviesIdResponse
+}
+
+
+
+/**
+ * Returns all worker jobs sorted by created time desc
+ * @summary List all bilibili worker jobs
+ */
+export type getApiV1ToolsBilibiliJobsResponse200 = {
+  data: GetApiV1ToolsBilibiliJobs200
+  status: 200
+}
+
+export type getApiV1ToolsBilibiliJobsResponseSuccess = (getApiV1ToolsBilibiliJobsResponse200) & {
+  headers: Headers;
+};
+;
+
+export type getApiV1ToolsBilibiliJobsResponse = (getApiV1ToolsBilibiliJobsResponseSuccess)
+
+export const getGetApiV1ToolsBilibiliJobsUrl = () => {
+
+
+
+
+  return `/api/v1/tools/bilibili/jobs`
+}
+
+export const getApiV1ToolsBilibiliJobs = async ( options?: RequestInit): Promise<getApiV1ToolsBilibiliJobsResponse> => {
+
+  const res = await fetch(getGetApiV1ToolsBilibiliJobsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getApiV1ToolsBilibiliJobsResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getApiV1ToolsBilibiliJobsResponse
+}
+
+
+
+/**
+ * Returns current status, progress, and result for a job id
+ * @summary Get bilibili worker job status
+ */
+export type getApiV1ToolsBilibiliJobsJobIDResponse200 = {
+  data: InternalHandlerBilibiliJob
+  status: 200
+}
+
+export type getApiV1ToolsBilibiliJobsJobIDResponse400 = {
+  data: GithubComYourUsernameBackendProjectPkgResponseErrorBody
+  status: 400
+}
+
+export type getApiV1ToolsBilibiliJobsJobIDResponse404 = {
+  data: GithubComYourUsernameBackendProjectPkgResponseErrorBody
+  status: 404
+}
+
+export type getApiV1ToolsBilibiliJobsJobIDResponseSuccess = (getApiV1ToolsBilibiliJobsJobIDResponse200) & {
+  headers: Headers;
+};
+export type getApiV1ToolsBilibiliJobsJobIDResponseError = (getApiV1ToolsBilibiliJobsJobIDResponse400 | getApiV1ToolsBilibiliJobsJobIDResponse404) & {
+  headers: Headers;
+};
+
+export type getApiV1ToolsBilibiliJobsJobIDResponse = (getApiV1ToolsBilibiliJobsJobIDResponseSuccess | getApiV1ToolsBilibiliJobsJobIDResponseError)
+
+export const getGetApiV1ToolsBilibiliJobsJobIDUrl = (jobID: string,) => {
+
+
+
+
+  return `/api/v1/tools/bilibili/jobs/${jobID}`
+}
+
+export const getApiV1ToolsBilibiliJobsJobID = async (jobID: string, options?: RequestInit): Promise<getApiV1ToolsBilibiliJobsJobIDResponse> => {
+
+  const res = await fetch(getGetApiV1ToolsBilibiliJobsJobIDUrl(jobID),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: getApiV1ToolsBilibiliJobsJobIDResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as getApiV1ToolsBilibiliJobsJobIDResponse
+}
+
+
+
+/**
+ * POC endpoint for downloading Bilibili video then uploading to Cloudinary
+ * @summary Download Bilibili and upload to Cloudinary
+ */
+export type postApiV1ToolsBilibiliUploadResponse202 = {
+  data: InternalHandlerBilibiliJobResponse
+  status: 202
+}
+
+export type postApiV1ToolsBilibiliUploadResponse400 = {
+  data: GithubComYourUsernameBackendProjectPkgResponseErrorBody
+  status: 400
+}
+
+export type postApiV1ToolsBilibiliUploadResponse500 = {
+  data: GithubComYourUsernameBackendProjectPkgResponseErrorBody
+  status: 500
+}
+
+export type postApiV1ToolsBilibiliUploadResponseSuccess = (postApiV1ToolsBilibiliUploadResponse202) & {
+  headers: Headers;
+};
+export type postApiV1ToolsBilibiliUploadResponseError = (postApiV1ToolsBilibiliUploadResponse400 | postApiV1ToolsBilibiliUploadResponse500) & {
+  headers: Headers;
+};
+
+export type postApiV1ToolsBilibiliUploadResponse = (postApiV1ToolsBilibiliUploadResponseSuccess | postApiV1ToolsBilibiliUploadResponseError)
+
+export const getPostApiV1ToolsBilibiliUploadUrl = () => {
+
+
+
+
+  return `/api/v1/tools/bilibili/upload`
+}
+
+export const postApiV1ToolsBilibiliUpload = async (postApiV1ToolsBilibiliUploadBody: PostApiV1ToolsBilibiliUploadBody, options?: RequestInit): Promise<postApiV1ToolsBilibiliUploadResponse> => {
+
+  const res = await fetch(getPostApiV1ToolsBilibiliUploadUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      postApiV1ToolsBilibiliUploadBody,)
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: postApiV1ToolsBilibiliUploadResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as postApiV1ToolsBilibiliUploadResponse
+}
+
+
+
+/**
+ * Accepts request and runs download + upload in background worker
+ * @summary Queue download/upload job (stream variant)
+ */
+export type postApiV1ToolsBilibiliUploadStreamResponse202 = {
+  data: InternalHandlerBilibiliJobResponse
+  status: 202
+}
+
+export type postApiV1ToolsBilibiliUploadStreamResponse400 = {
+  data: GithubComYourUsernameBackendProjectPkgResponseErrorBody
+  status: 400
+}
+
+export type postApiV1ToolsBilibiliUploadStreamResponseSuccess = (postApiV1ToolsBilibiliUploadStreamResponse202) & {
+  headers: Headers;
+};
+export type postApiV1ToolsBilibiliUploadStreamResponseError = (postApiV1ToolsBilibiliUploadStreamResponse400) & {
+  headers: Headers;
+};
+
+export type postApiV1ToolsBilibiliUploadStreamResponse = (postApiV1ToolsBilibiliUploadStreamResponseSuccess | postApiV1ToolsBilibiliUploadStreamResponseError)
+
+export const getPostApiV1ToolsBilibiliUploadStreamUrl = () => {
+
+
+
+
+  return `/api/v1/tools/bilibili/upload-stream`
+}
+
+export const postApiV1ToolsBilibiliUploadStream = async (postApiV1ToolsBilibiliUploadStreamBody: PostApiV1ToolsBilibiliUploadStreamBody, options?: RequestInit): Promise<postApiV1ToolsBilibiliUploadStreamResponse> => {
+
+  const res = await fetch(getPostApiV1ToolsBilibiliUploadStreamUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      postApiV1ToolsBilibiliUploadStreamBody,)
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: postApiV1ToolsBilibiliUploadStreamResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as postApiV1ToolsBilibiliUploadStreamResponse
 }
 
 
