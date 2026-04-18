@@ -191,6 +191,56 @@ export const postApiV1Movies = async (githubComYourUsernameBackendProjectInterna
 
 
 /**
+ * Delete movie by id
+ * @summary Delete movie
+ */
+export type deleteApiV1MoviesIdResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteApiV1MoviesIdResponse400 = {
+  data: GithubComYourUsernameBackendProjectPkgResponseErrorBody
+  status: 400
+}
+
+export type deleteApiV1MoviesIdResponseSuccess = (deleteApiV1MoviesIdResponse204) & {
+  headers: Headers;
+};
+export type deleteApiV1MoviesIdResponseError = (deleteApiV1MoviesIdResponse400) & {
+  headers: Headers;
+};
+
+export type deleteApiV1MoviesIdResponse = (deleteApiV1MoviesIdResponseSuccess | deleteApiV1MoviesIdResponseError)
+
+export const getDeleteApiV1MoviesIdUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/movies/${id}`
+}
+
+export const deleteApiV1MoviesId = async (id: string, options?: RequestInit): Promise<deleteApiV1MoviesIdResponse> => {
+
+  const res = await fetch(getDeleteApiV1MoviesIdUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: deleteApiV1MoviesIdResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as deleteApiV1MoviesIdResponse
+}
+
+
+
+/**
  * Get movie by id
  * @summary Get movie detail
  */
@@ -601,6 +651,56 @@ export const postApiV1Users = async (githubComYourUsernameBackendProjectInternal
 
   const data: postApiV1UsersResponse['data'] = body ? JSON.parse(body) : {}
   return { data, status: res.status, headers: res.headers } as postApiV1UsersResponse
+}
+
+
+
+/**
+ * Delete user by id
+ * @summary Delete user
+ */
+export type deleteApiV1UsersIdResponse204 = {
+  data: void
+  status: 204
+}
+
+export type deleteApiV1UsersIdResponse400 = {
+  data: GithubComYourUsernameBackendProjectPkgResponseErrorBody
+  status: 400
+}
+
+export type deleteApiV1UsersIdResponseSuccess = (deleteApiV1UsersIdResponse204) & {
+  headers: Headers;
+};
+export type deleteApiV1UsersIdResponseError = (deleteApiV1UsersIdResponse400) & {
+  headers: Headers;
+};
+
+export type deleteApiV1UsersIdResponse = (deleteApiV1UsersIdResponseSuccess | deleteApiV1UsersIdResponseError)
+
+export const getDeleteApiV1UsersIdUrl = (id: string,) => {
+
+
+
+
+  return `/api/v1/users/${id}`
+}
+
+export const deleteApiV1UsersId = async (id: string, options?: RequestInit): Promise<deleteApiV1UsersIdResponse> => {
+
+  const res = await fetch(getDeleteApiV1UsersIdUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+)
+
+  const body = [204, 205, 304].includes(res.status) ? null : await res.text();
+
+  const data: deleteApiV1UsersIdResponse['data'] = body ? JSON.parse(body) : {}
+  return { data, status: res.status, headers: res.headers } as deleteApiV1UsersIdResponse
 }
 
 

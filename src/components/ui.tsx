@@ -1,4 +1,8 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes } from "react";
+import type {
+  ButtonHTMLAttributes,
+  InputHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 
 export function cn(...parts: (string | false | undefined)[]) {
   return parts.filter(Boolean).join(" ");
@@ -33,6 +37,18 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
     <input
       className={cn(
         "min-h-11 w-full rounded-2xl border border-[var(--border)] bg-[var(--muted)] px-3.5 text-sm text-[var(--foreground)] outline-none backdrop-blur-sm transition-colors placeholder:text-[var(--foreground-muted)] focus:border-[var(--accent)]/50 focus:bg-[var(--muted-hover)] focus:ring-2 focus:ring-[var(--accent)]/25",
+        props.className
+      )}
+      {...props}
+    />
+  );
+}
+
+export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      className={cn(
+        "min-h-40 w-full resize-y rounded-2xl border border-[var(--border)] bg-[var(--muted)] px-3.5 py-3 text-sm text-[var(--foreground)] outline-none backdrop-blur-sm transition-colors placeholder:text-[var(--foreground-muted)] focus:border-[var(--accent)]/50 focus:bg-[var(--muted-hover)] focus:ring-2 focus:ring-[var(--accent)]/25",
         props.className
       )}
       {...props}

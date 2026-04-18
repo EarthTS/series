@@ -3,6 +3,7 @@
 import { Button, Input, Label } from "@/components/ui";
 import {
   createUser,
+  deleteUserAccount,
   fetchUsers,
   updateUser,
   type ApiUser,
@@ -67,6 +68,7 @@ export default function AdminUsersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [activeUser, setActiveUser] = useState<ApiUser | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
 
   useEffect(() => {
@@ -176,6 +178,33 @@ export default function AdminUsersPage() {
     await reloadUsers();
   }
 
+  async function handleDeleteUser(u: ApiUser) {
+    if (!u.id) {
+      alert("ไม่พบรหัสผู้ใช้");
+      return;
+    }
+    if (
+      !confirm(
+        `ลบผู้ใช้ "${u.name}" (${u.email}) ถาวร? การกระทำนี้ย้อนกลับไม่ได้`
+      )
+    ) {
+      return;
+    }
+    setDeletingId(u.id);
+    const result = await deleteUserAccount(u.id);
+    setDeletingId(null);
+    if (!result.ok) {
+      alert(result.message || "ลบไม่สำเร็จ");
+      return;
+    }
+    if (modalOpen && activeUser?.id === u.id) {
+      setModalOpen(false);
+      setActiveUser(null);
+      setForm(emptyForm);
+    }
+    await reloadUsers();
+  }
+
   return (
     <div className="mx-auto max-w-5xl space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -197,19 +226,20 @@ export default function AdminUsersPage() {
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-[var(--border-strong)] bg-[var(--card-solid)] shadow-[0_12px_40px_rgba(0,0,0,0.35)]">
-        <table className="w-full min-w-[520px] text-left text-sm">
+        <table className="w-full min-w-[620px] text-left text-sm">
           <thead className="border-b border-[var(--border)] bg-[var(--muted)] text-xs font-bold uppercase tracking-wide text-[var(--foreground-muted)]">
             <tr>
               <th className="px-4 py-3 font-medium">ชื่อ</th>
               <th className="px-4 py-3 font-medium">อีเมล</th>
               <th className="px-4 py-3 font-medium">แพ็กเกจ</th>
               <th className="px-4 py-3 font-medium">สถานะ</th>
+              <th className="px-4 py-3 font-medium text-right">จัดการ</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td className="px-4 py-3 text-[var(--foreground-muted)]" colSpan={4}>
+                <td className="px-4 py-3 text-[var(--foreground-muted)]" colSpan={5}>
                   กำลังโหลด...
                 </td>
               </tr>
@@ -233,12 +263,26 @@ export default function AdminUsersPage() {
                         {u.isAdmin ? "แอดมิน" : isMember ? "สมาชิก" : "ยังไม่เป็นสมาชิก"}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        type="button"
+                        variant="danger"
+                        className="min-h-9 px-3 text-xs"
+                        disabled={!u.id || deletingId === u.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void handleDeleteUser(u);
+                        }}
+                      >
+                        {deletingId === u.id ? "กำลังลบ..." : "ลบ"}
+                      </Button>
+                    </td>
                   </tr>
                 );
               })}
             {!loading && users.length === 0 && (
               <tr>
-                <td className="px-4 py-3 text-[var(--foreground-muted)]" colSpan={4}>
+                <td className="px-4 py-3 text-[var(--foreground-muted)]" colSpan={5}>
                   ไม่พบข้อมูลผู้ใช้
                 </td>
               </tr>
@@ -330,7 +374,7 @@ export default function AdminUsersPage() {
               </label>
             </div>
 
-            <div className="mt-5 flex gap-2">
+            <div className="mt-5 flex flex-wrap gap-2">
               <Button type="button" onClick={submitForm} disabled={submitting}>
                 {submitting
                   ? mode === "create"
@@ -343,6 +387,17 @@ export default function AdminUsersPage() {
               <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
                 ยกเลิก
               </Button>
+              {mode === "edit" && activeUser?.id && (
+                <Button
+                  type="button"
+                  variant="danger"
+                  className="sm:ml-auto"
+                  disabled={submitting || deletingId === activeUser.id}
+                  onClick={() => void handleDeleteUser(activeUser)}
+                >
+                  {deletingId === activeUser.id ? "กำลังลบ..." : "ลบผู้ใช้นี้"}
+                </Button>
+              )}
             </div>
           </div>
         </div>

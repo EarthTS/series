@@ -1,4 +1,6 @@
 import {
+  deleteApiV1MoviesId,
+  deleteApiV1UsersId,
   getApiV1MoviesId,
   getApiV1Movies,
   getApiV1UsersId,
@@ -168,6 +170,18 @@ export async function updateSeries(
   return res.status === 200;
 }
 
+export async function deleteSeries(id: string): Promise<{ ok: boolean; message?: string }> {
+  const res = await deleteApiV1MoviesId(id);
+  if (res.status === 204) {
+    return { ok: true };
+  }
+  const data = asRecord(res.data);
+  return {
+    ok: false,
+    message: asString(data.message, `ลบไม่สำเร็จ (HTTP ${res.status})`),
+  };
+}
+
 export type ApiUser = {
   id: string;
   name: string;
@@ -180,7 +194,7 @@ export type ApiUser = {
 function mapApiUser(user: unknown): ApiUser {
   const raw = asRecord(user);
   return {
-    id: asString(raw.id || raw._id, ""),
+    id: asString(raw.userId || raw.id || raw._id, ""),
     name: asString(raw.name, "ไม่ระบุชื่อ"),
     email: asString(raw.email),
     isActive: Boolean(raw.isActive),
@@ -246,6 +260,18 @@ export async function updateUser(
   };
   const res = await putApiV1UsersId(id, payload);
   return res.status === 200;
+}
+
+export async function deleteUserAccount(id: string): Promise<{ ok: boolean; message?: string }> {
+  const res = await deleteApiV1UsersId(id);
+  if (res.status === 204) {
+    return { ok: true };
+  }
+  const data = asRecord(res.data);
+  return {
+    ok: false,
+    message: asString(data.message, `ลบไม่สำเร็จ (HTTP ${res.status})`),
+  };
 }
 
 export type AuthLoginResult = {

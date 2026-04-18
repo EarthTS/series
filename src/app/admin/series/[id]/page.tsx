@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Input, Label } from "@/components/ui";
-import { fetchSeriesById, updateSeries } from "@/lib/api/series-api";
+import { deleteSeries, fetchSeriesById, updateSeries } from "@/lib/api/series-api";
 import type { Series } from "@/lib/types";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -63,6 +63,7 @@ function AdminSeriesEditForm({ series }: { series: Series }) {
       : [{ title: "", url: "" }]
   );
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   function addRow() {
     setEps((rows) => [...rows, { title: "", url: "" }]);
@@ -102,6 +103,24 @@ function AdminSeriesEditForm({ series }: { series: Series }) {
 
     if (!ok) {
       alert("อัปเดตไม่สำเร็จ กรุณาตรวจสอบการเชื่อมต่อ API");
+      return;
+    }
+    router.push("/admin/series");
+  }
+
+  async function removeSeries() {
+    if (
+      !confirm(
+        `ลบซีรี่ "${series.title}" ถาวร? การกระทำนี้ย้อนกลับไม่ได้`
+      )
+    ) {
+      return;
+    }
+    setDeleting(true);
+    const result = await deleteSeries(series.id);
+    setDeleting(false);
+    if (!result.ok) {
+      alert(result.message || "ลบไม่สำเร็จ");
       return;
     }
     router.push("/admin/series");
@@ -191,7 +210,7 @@ function AdminSeriesEditForm({ series }: { series: Series }) {
         </ul>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button type="button" className="w-full sm:w-auto" onClick={submit} disabled={submitting}>
           {submitting ? "กำลังบันทึก..." : "บันทึกการแก้ไข"}
         </Button>
@@ -201,6 +220,15 @@ function AdminSeriesEditForm({ series }: { series: Series }) {
         >
           ยกเลิก
         </Link>
+        <Button
+          type="button"
+          variant="danger"
+          className="w-full sm:ml-auto sm:w-auto"
+          onClick={removeSeries}
+          disabled={submitting || deleting}
+        >
+          {deleting ? "กำลังลบ..." : "ลบซีรี่นี้"}
+        </Button>
       </div>
     </div>
   );
