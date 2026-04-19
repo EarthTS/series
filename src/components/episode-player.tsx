@@ -1,6 +1,11 @@
 "use client";
 
-import { classifyVideoUrl } from "@/lib/video-url";
+import { CldVideoPlayer } from "next-cloudinary";
+
+import { classifyVideoUrl, toCldVideoPlayerSrc } from "@/lib/video-url";
+
+const playerShellClass =
+  "relative aspect-video w-full overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-black shadow-[0_16px_48px_rgba(0,0,0,0.55)] ring-1 ring-white/10";
 
 export function EpisodePlayer({ url, title }: { url: string; title: string }) {
   const parsed = classifyVideoUrl(url);
@@ -15,7 +20,7 @@ export function EpisodePlayer({ url, title }: { url: string; title: string }) {
 
   if (parsed.kind === "bilibili") {
     return (
-      <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-black shadow-[0_16px_48px_rgba(0,0,0,0.55)] ring-1 ring-white/10">
+      <div className={playerShellClass}>
         <iframe
           title={title}
           src={parsed.src}
@@ -27,8 +32,25 @@ export function EpisodePlayer({ url, title }: { url: string; title: string }) {
     );
   }
 
+  if (parsed.kind === "cloudinary") {
+    const src = toCldVideoPlayerSrc(parsed.src);
+    return (
+      <div className={playerShellClass}>
+        <CldVideoPlayer
+          key={src}
+          src={src}
+          width={1920}
+          height={1080}
+          fluid
+          controls
+          className="h-full w-full [&_.video-js]:!h-full [&_.video-js]:!w-full"
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-black shadow-[0_16px_48px_rgba(0,0,0,0.55)] ring-1 ring-white/10">
+    <div className={playerShellClass}>
       <video
         key={parsed.src}
         className="absolute inset-0 h-full w-full"
